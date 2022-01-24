@@ -1,0 +1,66 @@
+// SPDX-License-Identifier: GPL-3.0
+
+pragma solidity >= 0.5.0 <0.9.0;
+
+contract ROI_Platform{
+        uint public minimumAmount;
+        address public manager;
+
+        struct Investor{
+            address payable account_no;
+            uint invested_amount;
+            uint invested_date;
+            uint gained_amount;
+        }
+
+        mapping(address=>Investor) public investors;
+
+        constructor(){
+        manager=msg.sender;
+        minimumAmount=0.01 ether;
+        }
+
+    function invest() public payable
+    {
+        require(msg.value >=minimumAmount,"minimum amount atleast 0.01 ether");   
+        investors[msg.sender]=Investor(payable(msg.sender),msg.value,block.timestamp,0);
+    }
+
+    modifier onlyManager(){
+        require(msg.sender==manager,"only manager can call this function");
+        _;
+    }
+
+    function get_Contract_Balance() view public onlyManager returns(uint) 
+    {   
+        return address(this).balance;
+    }
+
+    function check_investment() public view returns(uint)
+    {
+    require(investors[msg.sender].invested_amount>0,"you account balance is zero");
+    Investor storage thisinvestor=investors[msg.sender];
+    uint current_balance;
+    uint current_date=block.timestamp;
+    uint total_time_differnce=current_date-thisinvestor.invested_date;
+    uint term=total_time_differnce/30; //30=every 30 second is 1 term, on every term investor will get 3% return
+    current_balance=thisinvestor.invested_amount + thisinvestor.invested_amount*3/100*term;
+    return current_balance;
+    }
+
+    function withdraw_investment(uint amount) public
+    {
+        Investor storage thisinvestor=investors[msg.sender];
+        investors[msg.sender].gained_amount=check_investment();
+        uint withdraw_balance=amount;
+        require(investors[msg.sender].gained_amount >= withdraw_balance,"insufficient account balance");
+        payable(thisinvestor.account_no).transfer(withdraw_balance);
+        thisinvestor.invested_amount=investors[msg.sender].gained_amount-withdraw_balance;
+        investors[msg.sender].gained_amount=0;
+    }
+
+    function sendfunds_to_contract() public onlyManager payable
+    {
+        //by using this function manager can add earned money and send it to the contract balance.
+    } 
+}
